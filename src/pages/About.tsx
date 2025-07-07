@@ -263,7 +263,7 @@ const About: React.FC = () => {
           This Smart Factory Dashboard was developed as part of an Industry 4.0 initiative to modernize 
           manufacturing processes through intelligent monitoring, predictive analytics, and real-time data synchronization.
         </p>
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-6">
           <span className="bg-purple-900 text-purple-200 px-4 py-2 rounded-full text-sm">
             Industrial IoT
           </span>
@@ -277,6 +277,12 @@ const About: React.FC = () => {
             Multi-sensor Monitoring
           </span>
         </div>
+        <p className="text-purple-300 font-semibold mb-2">
+          Project by Anjo Joseph, Dev Mandloi, Harsh Gupta, Pranav Rao &amp; Subhranil Swar
+        </p>
+        <p className="text-gray-500 text-xs mt-4">
+          &copy;{new Date().getFullYear()} Smart Factory Dashboard. All rights reserved.
+        </p>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Factory, Cpu, Shield, BarChart3, Zap, Users, Award, Globe, Database } from 'lucide-react';
+import { Factory, Cpu, Shield, BarChart3, Zap, Users, Award, Globe, Database, Phone } from 'lucide-react';
 
 const About: React.FC = () => {
   const features = [
@@ -23,6 +23,11 @@ const About: React.FC = () => {
       title: 'Firebase Integration',
       description: 'Real-time data synchronization with Firebase Realtime Database for instant updates.',
     },
+    {
+      icon: Shield,
+      title: 'Twilio Emergency Alerts',
+      description: 'Automated emergency calls when critical conditions persist across multiple readings.',
+    },
   ];
 
   const sensors = [
@@ -31,6 +36,7 @@ const About: React.FC = () => {
     { name: 'Temperature Sensor', unit: '°C', description: 'Measures ambient temperature' },
     { name: '3-Axis Accelerometer', unit: 'm/s²', description: 'Detects vibrations in X, Y, Z axes' },
     { name: 'Relay Control', unit: 'Digital', description: 'Controls equipment on/off state' },
+    { name: 'Anomaly Detection', unit: 'Boolean', description: 'Firebase-based anomaly detection (0/1)' },
   ];
 
   const technologies = [
@@ -42,6 +48,8 @@ const About: React.FC = () => {
     'Responsive Web Design',
     'Tailwind CSS',
     'Lucide React Icons',
+    'Twilio API Integration',
+    'Emergency Alert System',
   ];
 
   return (
@@ -167,6 +175,7 @@ const About: React.FC = () => {
               <div className="ml-4">vibration_y: "3.51 m/s²"</div>
               <div className="ml-4">vibration_z: "-10.40 m/s²"</div>
               <div className="ml-4">relayState: 1</div>
+              <div className="ml-4">is_anomaly: 0</div>
               <div className="ml-4">timestamp: "2025-07-07 20:27:37"</div>
               <div>{`}`}</div>
             </div>
@@ -174,6 +183,59 @@ const About: React.FC = () => {
         </div>
       </div>
 
+      {/* Twilio Integration */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-800 p-8 rounded-lg shadow-lg">
+        <div className="flex items-center mb-6">
+          <Phone className="h-8 w-8 text-purple-400 mr-3" />
+          <h2 className="text-2xl font-bold text-white">Emergency Alert System</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-4">Twilio Integration</h3>
+            <ul className="space-y-2 text-purple-100">
+              <li className="flex items-start">
+                <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                Automated emergency calls to +91 9980683606 when critical conditions persist
+              </li>
+              <li className="flex items-start">
+                <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                Triggers when 3+ indicators are critical AND Firebase anomaly detected
+              </li>
+              <li className="flex items-start">
+                <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                Requires 3-4 consecutive critical readings to prevent false alarms
+              </li>
+              <li className="flex items-start">
+                <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                5-minute cooldown between calls to avoid spam + SMS backup alerts
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-4">Alert Conditions</h3>
+            <div className="space-y-2 text-sm">
+              <div className="bg-purple-700 p-3 rounded">
+                <span className="text-purple-200 font-semibold">Critical Threshold:</span>
+                <p className="text-purple-100 mt-1">
+                  Firebase anomaly (is_anomaly = 1) + 3 or more critical sensor readings
+                </p>
+              </div>
+              <div className="bg-purple-700 p-3 rounded">
+                <span className="text-purple-200 font-semibold">Persistence Check:</span>
+                <p className="text-purple-100 mt-1">
+                  Conditions must persist for 3-4 consecutive readings
+                </p>
+              </div>
+              <div className="bg-purple-700 p-3 rounded">
+                <span className="text-purple-200 font-semibold">Emergency Response:</span>
+                <p className="text-purple-100 mt-1">
+                  Automated voice call + SMS to +91 9980683606 from +1 9133956396
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Benefits Section */}
       <div className="bg-gradient-to-r from-blue-900 to-blue-800 p-8 rounded-lg shadow-lg">
         <div className="flex items-center mb-6">
@@ -197,10 +259,10 @@ const About: React.FC = () => {
           </div>
           <div className="text-center">
             <div className="bg-blue-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl font-bold text-white">↓35%</span>
+              <span className="text-2xl font-bold text-white">↓60%</span>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Lower Costs</h3>
-            <p className="text-blue-200">Comprehensive monitoring reduces maintenance and energy costs</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Faster Response</h3>
+            <p className="text-blue-200">Automated emergency alerts reduce response time to critical failures</p>
           </div>
         </div>
       </div>
@@ -224,12 +286,12 @@ const About: React.FC = () => {
                 <span className="text-white">30 minutes rolling</span>
               </div>
               <div className="flex justify-between">
-                <span>Sensor Count:</span>
-                <span className="text-white">5 sensor types</span>
+                <span>Parameters:</span>
+                <span className="text-white">8 sensor parameters</span>
               </div>
               <div className="flex justify-between">
-                <span>Alert Levels:</span>
-                <span className="text-white">Normal, Warning, Critical</span>
+                <span>Alert System:</span>
+                <span className="text-white">Twilio Emergency Calls</span>
               </div>
             </div>
           </div>
@@ -247,6 +309,9 @@ const About: React.FC = () => {
               </div>
               <div className="bg-gray-700 p-2 rounded">
                 <span className="text-red-400">Vibration:</span> <span className="text-gray-300">Normal &lt;8m/s², Warning &lt;12m/s², Critical &gt;12m/s²</span>
+              </div>
+              <div className="bg-gray-700 p-2 rounded">
+                <span className="text-purple-400">Anomaly:</span> <span className="text-gray-300">Firebase ML detection (0=Normal, 1=Anomaly)</span>
               </div>
             </div>
           </div>

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, off, DatabaseReference } from 'firebase/database';
 import { db } from '../firebaseConfig';
+import { twilioService } from '../components/TwilioService';
 
 export interface LiveData {
   decibel: number;
-  humidity: number;
+  humidity:  number;
   relayState: number;
   temperature: number;
   timestamp: string;
@@ -12,6 +13,7 @@ export interface LiveData {
   vibration_y: number;
   vibration_z: number;
   vibration_magnitude?: number; // Calculated field
+  is_anomaly: number; // 0 or 1
 }
 
 export interface RawFirebaseData {
@@ -23,11 +25,14 @@ export interface RawFirebaseData {
   vibration_x: string;
   vibration_y: string;
   vibration_z: string;
+  is_anomaly: number;
 }
 
 export interface AnomalyStatus {
-  status: 'Normal' | 'Alert';
+  status: 'Normal' | 'Alert' | 'Critical';
   severity: 'low' | 'medium' | 'high';
+  firebaseAnomaly: boolean;
+  criticalIndicators: number;
 }
 
 export interface FailurePrediction {
@@ -35,13 +40,21 @@ export interface FailurePrediction {
   confidence: number;
 }
 
+export interface TwilioAlert {
+  triggered: boolean;
+  lastCallTime: Date | null;
+  consecutiveCriticalReadings: number;
+  message: string;
+}
 interface UseRealTimeDataReturn {
   liveData: LiveData | null;
   anomalyStatus: AnomalyStatus | null;
   failurePrediction: FailurePrediction | null;
   historicalData: LiveData[];
+  twilioAlert: TwilioAlert;
   loading: boolean;
   error: string | null;
+  triggerTwilioCall: () => Promise<void>;
 }
 
 // Utility function to parse sensor values and remove units
@@ -71,12 +84,27 @@ const transformFirebaseData = (rawData: RawFirebaseData): LiveData => {
     vibration_y: vibY,
     vibration_z: vibZ,
     vibration_magnitude: vibrationMagnitude,
+    is_anomaly: rawData.is_anomaly,
   };
 };
 
+// Count critical indicators
+const countCriticalIndicators = (data: LiveData): number => {
+  let criticalCount = 0;
+  
+  if (data.decibel > 80) criticalCount++;
+  if (data.humidity > 66 || data.humidity < 55) criticalCount++;
+  if (data.temperature > 32) criticalCount++;
+  if (data.vibration_magnitude && data.vibration_magnitude > 12) criticalCount++;
+  
+  return criticalCount;
+};
 // Generate anomaly status based on sensor readings
 const generateAnomalyStatus = (data: LiveData): AnomalyStatus => {
-  const { decibel, humidity, temperature, vibration_magnitude } = data;
+  const { decibel, humidity, temperature, vibration_magnitude, is_anomaly } = data;
+  
+  const criticalIndicators = countCriticalIndicators(data);
+  const firebaseAnomaly = is_anomaly === 1;
   
   // Define thresholds for anomaly detection
   const criticalConditions = [
@@ -96,17 +124,87 @@ const generateAnomalyStatus = (data: LiveData): AnomalyStatus => {
   const criticalCount = criticalConditions.filter(Boolean).length;
   const warningCount = warningConditions.filter(Boolean).length;
 
-  if (criticalCount > 0) {
-    return { status: 'Alert', severity: 'high' };
-  }
-  if (warningCount > 1) {
-    return { status: 'Alert', severity: 'medium' };
-  }
-  if (warningCount > 0) {
-    return { status: 'Alert', severity: 'low' };
+  // Critical if Firebase anomaly is detected AND 3+ indicators are critical
+  if (firebaseAnomaly && criticalIndicators >= 3) {
+    return { 
+      status: 'Critical', 
+      severity: 'high', 
+      firebaseAnomaly, 
+      criticalIndicators 
+    };
   }
   
-  return { status: 'Normal', severity: 'low' };
+  if (criticalCount > 0) {
+    return { 
+      status: 'Alert', 
+      severity: 'high', 
+      firebaseAnomaly, 
+      criticalIndicators 
+    };
+  }
+  if (warningCount > 1) {
+    return { 
+      status: 'Alert', 
+      severity: 'medium', 
+      firebaseAnomaly, 
+      criticalIndicators 
+    };
+  }
+  if (warningCount > 0) {
+    return { 
+      status: 'Alert', 
+      severity: 'low', 
+      firebaseAnomaly, 
+      criticalIndicators 
+    };
+  }
+  
+  return { 
+    status: 'Normal', 
+    severity: 'low', 
+    firebaseAnomaly, 
+    criticalIndicators 
+  };
+};
+
+// Enhanced Twilio call function using the TwilioService
+const makeTwilioCall = async (phoneNumber: string, message: string, criticalIndicators: number, anomalyStatus: string): Promise<boolean> => {
+  try {
+    console.log('🚨 INITIATING EMERGENCY CALL 🚨');
+    console.log(`Critical Indicators: ${criticalIndicators}/4`);
+    console.log(`Anomaly Status: ${anomalyStatus}`);
+    
+    // Enhanced message with more details
+    const enhancedMessage = `CRITICAL FACTORY ALERT! This is an automated emergency call from your Smart Factory Dashboard. 
+    We have detected ${criticalIndicators} out of 4 critical sensor failures with confirmed anomaly detection. 
+    ${message} 
+    Please respond immediately to prevent equipment damage. 
+    Check your dashboard at your earliest convenience.`;
+
+    const success = await twilioService.makeCall({
+      to: phoneNumber,
+      message: enhancedMessage,
+    });
+    
+    if (success) {
+      console.log('✅ Emergency call initiated successfully');
+      
+      // Also send an SMS as backup
+      const smsMessage = `🚨 FACTORY ALERT: ${criticalIndicators}/4 critical sensors failed. Anomaly detected. Check dashboard immediately!`;
+      await twilioService.sendSMS({
+        to: phoneNumber,
+        message: smsMessage,
+      });
+      
+      return true;
+    } else {
+      console.error('❌ Failed to initiate emergency call');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error making emergency call:', error);
+    return false;
+  }
 };
 
 // Generate failure prediction based on anomaly status and trends
@@ -144,14 +242,46 @@ export const useRealTimeData = (): UseRealTimeDataReturn => {
   const [anomalyStatus, setAnomalyStatus] = useState<AnomalyStatus | null>(null);
   const [failurePrediction, setFailurePrediction] = useState<FailurePrediction | null>(null);
   const [historicalData, setHistoricalData] = useState<LiveData[]>([]);
+  const [twilioAlert, setTwilioAlert] = useState<TwilioAlert>({
+    triggered: false,
+    lastCallTime: null,
+    consecutiveCriticalReadings: 0,
+    message: '',
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const dataRef = useRef<DatabaseReference | null>(null);
+  const criticalReadingsRef = useRef<AnomalyStatus[]>([]);
+
+  // Function to trigger Twilio call manually
+  const triggerTwilioCall = async (): Promise<void> => {
+    const phoneNumber = '+919980683606'; // Your actual phone number
+    const currentAnomalyStatus = anomalyStatus?.status || 'Unknown';
+    const criticalCount = anomalyStatus?.criticalIndicators || 0;
+    
+    const message = `CRITICAL ALERT: Smart Factory Dashboard detected critical anomalies. ${twilioAlert.consecutiveCriticalReadings} consecutive critical readings detected with ${criticalCount} critical indicators. Please check the system immediately.`;
+    
+    const success = await makeTwilioCall(phoneNumber, message, criticalCount, currentAnomalyStatus);
+    
+    if (success) {
+      setTwilioAlert(prev => ({
+        ...prev,
+        triggered: true,
+        lastCallTime: new Date(),
+        message: `Emergency call and SMS sent successfully to ${phoneNumber}`,
+      }));
+    } else {
+      setTwilioAlert(prev => ({
+        ...prev,
+        message: 'Failed to initiate emergency call. Please check Twilio configuration.',
+      }));
+    }
+  };
 
   useEffect(() => {
     // Create reference to the sensor data in Firebase
     // Adjust the path based on your Firebase database structure
-    dataRef.current = ref(db, 'FactoryData'); // Change this path as needed
+    dataRef.current = ref(db, 'FactoryData'); // Updated to match your Firebase structure
 
     const handleDataChange = (snapshot: any) => {
       try {
@@ -163,26 +293,34 @@ export const useRealTimeData = (): UseRealTimeDataReturn => {
           return;
         }
 
-        // Get all entries as an array of [key, value]
-        const entries = Object.entries(rawDataObj);
-        if (entries.length === 0) {
-          setError('No data available from Firebase');
-          setLoading(false);
-          return;
+        // Check if rawDataObj is a single object or contains multiple entries
+        let latestRawData: RawFirebaseData;
+        
+        if (rawDataObj.decibel !== undefined) {
+          // Direct object structure
+          latestRawData = rawDataObj as RawFirebaseData;
+        } else {
+          // Multiple entries - get the latest one
+          const entries = Object.entries(rawDataObj);
+          if (entries.length === 0) {
+            setError('No data available from Firebase');
+            setLoading(false);
+            return;
+          }
+
+          // Sort by timestamp if available, otherwise by key (push ID)
+          const sorted = entries.sort((a, b) => {
+            const aData = a[1] as RawFirebaseData;
+            const bData = b[1] as RawFirebaseData;
+            const aTime = new Date(aData.timestamp).getTime();
+            const bTime = new Date(bData.timestamp).getTime();
+            return bTime - aTime;
+          });
+
+          latestRawData = sorted[0][1] as RawFirebaseData;
         }
 
-        // Sort by timestamp if available, otherwise by key (push ID)
-        const sorted = entries.sort((a, b) => {
-          const aData = a[1] as RawFirebaseData;
-          const bData = b[1] as RawFirebaseData;
-          const aTime = new Date(aData.timestamp).getTime();
-          const bTime = new Date(bData.timestamp).getTime();
-          return bTime - aTime;
-        });
-
-        // Use the latest entry
-        const latestRawData = sorted[0][1];
-        const transformedData = transformFirebaseData(latestRawData as RawFirebaseData);
+        const transformedData = transformFirebaseData(latestRawData);
 
         setLiveData(transformedData);
 
@@ -190,6 +328,67 @@ export const useRealTimeData = (): UseRealTimeDataReturn => {
         const anomaly = generateAnomalyStatus(transformedData);
         setAnomalyStatus(anomaly);
 
+        // Track critical readings for Twilio alert
+        criticalReadingsRef.current.push(anomaly);
+        
+        // Keep only last 5 readings for consecutive check
+        if (criticalReadingsRef.current.length > 5) {
+          criticalReadingsRef.current = criticalReadingsRef.current.slice(-5);
+        }
+        
+        // Check for Twilio alert conditions
+        const recentCritical = criticalReadingsRef.current.slice(-4); // Last 4 readings
+        const consecutiveCritical = recentCritical.every(reading => 
+          reading.status === 'Critical' && 
+          reading.firebaseAnomaly && 
+          reading.criticalIndicators >= 3
+        );
+        
+        // Auto-trigger emergency call if conditions are met
+        if (consecutiveCritical && recentCritical.length >= 3) {
+          const timeSinceLastCall = twilioAlert.lastCallTime 
+            ? Date.now() - twilioAlert.lastCallTime.getTime() 
+            : Infinity;
+          
+          // Only trigger call if it's been more than 5 minutes since last call (reduced for testing)
+          if (timeSinceLastCall > 5 * 60 * 1000) {
+            console.log('🚨 AUTO-TRIGGERING EMERGENCY CALL 🚨');
+            console.log(`Consecutive critical readings: ${recentCritical.length}`);
+            console.log(`Critical indicators: ${anomaly.criticalIndicators}/4`);
+            console.log(`Firebase anomaly: ${anomaly.firebaseAnomaly}`);
+            
+            setTwilioAlert(prev => ({
+              ...prev,
+              consecutiveCriticalReadings: recentCritical.length,
+              message: `AUTO-ALERT: ${recentCritical.length} consecutive critical readings detected. Emergency call initiated.`,
+            }));
+            
+            // Auto-trigger emergency call
+            const phoneNumber = '+919980683606';
+            const autoMessage = `AUTOMATIC EMERGENCY ALERT: ${recentCritical.length} consecutive critical readings detected with ${anomaly.criticalIndicators} critical indicators and confirmed anomaly detection.`;
+            
+            makeTwilioCall(phoneNumber, autoMessage, anomaly.criticalIndicators, anomaly.status).then(success => {
+              if (success) {
+                setTwilioAlert(prev => ({
+                  ...prev,
+                  triggered: true,
+                  lastCallTime: new Date(),
+                  message: `AUTO-EMERGENCY: Call and SMS sent to ${phoneNumber} at ${new Date().toLocaleTimeString()}`,
+                }));
+              }
+            });
+          }
+        } else {
+          // Reset consecutive readings if conditions are not met
+          if (anomaly.status !== 'Critical') {
+            setTwilioAlert(prev => ({
+              ...prev,
+              consecutiveCriticalReadings: 0,
+              triggered: false,
+            }));
+          }
+        }
+        
         // Add to historical data (keep last 30 minutes worth)
         setHistoricalData(prev => {
           const updated = [...prev, transformedData];
@@ -251,7 +450,9 @@ export const useRealTimeData = (): UseRealTimeDataReturn => {
     anomalyStatus,
     failurePrediction,
     historicalData,
+    twilioAlert,
     loading,
     error,
+    triggerTwilioCall,
   };
 };

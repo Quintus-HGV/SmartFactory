@@ -1,11 +1,11 @@
 import React from 'react';
-import { Volume2, Droplets, Thermometer, AlertTriangle, Shield, Cpu, Activity, Power } from 'lucide-react';
+import { Volume2, Droplets, Thermometer, AlertTriangle, Shield, Cpu, Activity, Power, Phone, PhoneCall } from 'lucide-react';
 import StatusCard from '../components/StatusCard';
 import RealTimeChart from '../components/RealTimeChart';
 import { useRealTimeData } from '../hooks/useRealTimeData';
 
 const Dashboard: React.FC = () => {
-  const { liveData, anomalyStatus, failurePrediction, historicalData, loading, error } = useRealTimeData();
+  const { liveData, anomalyStatus, failurePrediction, historicalData, twilioAlert, loading, error, triggerTwilioCall } = useRealTimeData();
 
   if (loading) {
     return (
@@ -26,12 +26,21 @@ const Dashboard: React.FC = () => {
   if (!liveData || !anomalyStatus || !failurePrediction) {
     return (
       <div className="text-center text-gray-400">
-        No data available from Firebase
+        <div className="bg-yellow-900 border border-yellow-500 text-yellow-100 px-4 py-3 rounded mb-4">
+          <p>Waiting for Firebase data...</p>
+          <p className="text-sm mt-2">
+            Make sure your Firebase path is correct: <code>FactoryData</code>
+          </p>
+          <p className="text-sm">
+            Expected data structure: decibel, humidity, temperature, vibration_x, vibration_y, vibration_z, relayState, is_anomaly, timestamp
+          </p>
+        </div>
       </div>
     );
   }
 
   const getStatusLevel = (status: string, prediction: string) => {
+    if (status === 'Critical') return 'critical';
     if (prediction === 'Critical' || status === 'Alert') return 'critical';
     if (prediction === 'Warning') return 'warning';
     return 'normal';
@@ -69,6 +78,53 @@ const Dashboard: React.FC = () => {
         <p className="text-gray-400">Live sensor data from Firebase Realtime Database</p>
       </div>
 
+      {/* Twilio Alert Section */}
+      {(anomalyStatus.status === 'Critical' || twilioAlert.consecutiveCriticalReadings > 0) && (
+        <div className="bg-red-900 border-2 border-red-500 p-6 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertTriangle className="h-8 w-8 text-red-400 mr-3 animate-pulse" />
+              <div>
+                <h3 className="text-xl font-bold text-red-100">CRITICAL SYSTEM ALERT</h3>
+                <p className="text-red-200">
+                  {twilioAlert.consecutiveCriticalReadings > 0 
+                    ? `${twilioAlert.consecutiveCriticalReadings} consecutive critical readings detected`
+                    : 'Critical anomaly detected with multiple system failures'
+                  }
+                </p>
+                <p className="text-red-300 text-sm mt-1">
+                  Firebase Anomaly: {anomalyStatus.firebaseAnomaly ? 'DETECTED' : 'None'} | 
+                  Critical Indicators: {anomalyStatus.criticalIndicators}/4
+                </p>
+                {twilioAlert.triggered && (
+                  <p className="text-green-300 text-sm mt-1 font-semibold">
+                    ✅ Emergency call initiated to +91 9980683606
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={triggerTwilioCall}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <PhoneCall className="h-4 w-4" />
+                Call +91 9980683606
+              </button>
+              {twilioAlert.lastCallTime && (
+                <p className="text-red-300 text-xs">
+                  Last call: {twilioAlert.lastCallTime.toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+          </div>
+          {twilioAlert.message && (
+            <div className="mt-4 p-3 bg-red-800 rounded text-red-100 text-sm">
+              <strong>Status:</strong> {twilioAlert.message}
+            </div>
+          )}
+        </div>
+      )}
       {/* Primary Sensor Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatusCard
@@ -127,7 +183,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* System Status */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatusCard
           title="Relay State"
           value={liveData.relayState ? 'ON' : 'OFF'}
@@ -136,11 +192,18 @@ const Dashboard: React.FC = () => {
           subtitle={liveData.relayState ? 'Active' : 'Inactive'}
         />
         <StatusCard
+          title="Firebase Anomaly"
+          value={liveData.is_anomaly ? 'DETECTED' : 'NORMAL'}
+          status={liveData.is_anomaly ? 'critical' : 'normal'}
+          icon={AlertTriangle}
+          subtitle={`Value: ${liveData.is_anomaly}`}
+        />
+        <StatusCard
           title="Anomaly Detection"
           value={anomalyStatus.status}
-          status={getStatusLevel(anomalyStatus.status, '')}
+          status={anomalyStatus.status === 'Critical' ? 'critical' : getStatusLevel(anomalyStatus.status, '')}
           icon={AlertTriangle}
-          subtitle={`Severity: ${anomalyStatus.severity.toUpperCase()}`}
+          subtitle={`Severity: ${anomalyStatus.severity.toUpperCase()} | Critical: ${anomalyStatus.criticalIndicators}/4`}
         />
         <StatusCard
           title="Failure Prediction"
@@ -223,7 +286,7 @@ const Dashboard: React.FC = () => {
           <Cpu className="h-6 w-6 text-blue-400 mr-2" />
           <h3 className="text-lg font-semibold text-white">System Status</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
           <div>
             <p className="text-gray-400">Last Update</p>
             <p className="text-white font-medium">
@@ -242,6 +305,12 @@ const Dashboard: React.FC = () => {
             <p className="text-gray-400">Relay State</p>
             <p className={`font-medium ${liveData.relayState ? 'text-green-400' : 'text-yellow-400'}`}>
               {liveData.relayState ? 'Active' : 'Inactive'}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-400">Twilio Status</p>
+            <p className={`font-medium ${twilioAlert.triggered ? 'text-red-400' : 'text-green-400'}`}>
+              {twilioAlert.triggered ? 'Alert Sent' : 'Standby'}
             </p>
           </div>
         </div>

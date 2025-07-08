@@ -282,7 +282,7 @@ const Historical: React.FC = () => {
           </div>
           <div>
             <p className="text-gray-400">Sensor Types</p>
-            <p className="text-white font-medium">7 Parameters</p>
+            <p className="text-white font-medium">8 Parameters</p>
           </div>
           <div>
             <p className="text-gray-400">Data Quality</p>

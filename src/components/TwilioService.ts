@@ -95,8 +95,8 @@ export class TwilioService {
 
 // Your actual Twilio configuration
 export const twilioConfig: TwilioConfig = {
-  accountSid: 'ACb94c587a2a7d154e82ae629cf0679f9d', // Replace with your actual Account SID
-  authToken: 'b431d3e48afa3ac6e0236512064c2320', // Replace with your actual Auth Token
+  accountSid: '', // Replace with your actual Account SID
+  authToken: '', // Replace with your actual Auth Token
   fromNumber: '+19133956396', // Your Twilio phone number
 };
 

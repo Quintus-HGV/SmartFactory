@@ -94,11 +94,6 @@ export class TwilioService {
 }
 
 // Your actual Twilio configuration
-export const twilioConfig: TwilioConfig = {
-  accountSid: '', // Replace with your actual Account SID
-  authToken: '', // Replace with your actual Auth Token
-  fromNumber: '+19133956396', // Your Twilio phone number
-};
 
 // Singleton instance
 export const twilioService = new TwilioService(twilioConfig);

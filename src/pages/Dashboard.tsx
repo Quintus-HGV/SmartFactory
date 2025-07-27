@@ -5,7 +5,7 @@ import RealTimeChart from '../components/RealTimeChart';
 import { useRealTimeData } from '../hooks/useRealTimeData';
 
 const Dashboard: React.FC = () => {
-  const { liveData, anomalyStatus, failurePrediction, historicalData, twilioAlert, loading, error, triggerTwilioCall } = useRealTimeData();
+  const { liveData, anomalyStatus, failurePrediction, historicalData, loading, error, triggerEmergencyCall } = useRealTimeData();
 
   if (loading) {
     return (
@@ -59,8 +59,8 @@ const Dashboard: React.FC = () => {
   };
 
   const getTemperatureStatus = (temperature: number) => {
-    if (temperature > 35) return 'critical';
-    if (temperature > 30) return 'warning';
+    if (temperature > 28) return 'critical';
+    if (temperature > 26) return 'warning';
     return 'normal';
   };
 
@@ -78,8 +78,8 @@ const Dashboard: React.FC = () => {
         <p className="text-gray-400">Live sensor data from Firebase Realtime Database</p>
       </div>
 
-      {/* Twilio Alert Section */}
-      {(anomalyStatus.status === 'Critical' || twilioAlert.consecutiveCriticalReadings > 0) && (
+      {/* Emergency Alert Section */}
+      {anomalyStatus.status === 'Critical' && (
         <div className="bg-red-900 border-2 border-red-500 p-6 rounded-lg shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -87,42 +87,24 @@ const Dashboard: React.FC = () => {
               <div>
                 <h3 className="text-xl font-bold text-red-100">CRITICAL SYSTEM ALERT</h3>
                 <p className="text-red-200">
-                  {twilioAlert.consecutiveCriticalReadings > 0 
-                    ? `${twilioAlert.consecutiveCriticalReadings} consecutive critical readings detected`
-                    : 'Critical anomaly detected with multiple system failures'
-                  }
+                  Critical anomaly detected with multiple system failures
                 </p>
                 <p className="text-red-300 text-sm mt-1">
                   Firebase Anomaly: {anomalyStatus.firebaseAnomaly ? 'DETECTED' : 'None'} | 
                   Critical Indicators: {anomalyStatus.criticalIndicators}/4
                 </p>
-                {twilioAlert.triggered && (
-                  <p className="text-green-300 text-sm mt-1 font-semibold">
-                    ✅ Emergency call initiated to +91 9980683606
-                  </p>
-                )}
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <button
-                onClick={triggerTwilioCall}
+                onClick={triggerEmergencyCall}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 <PhoneCall className="h-4 w-4" />
-                Call +91 9980683606
+                Emergency Call
               </button>
-              {twilioAlert.lastCallTime && (
-                <p className="text-red-300 text-xs">
-                  Last call: {twilioAlert.lastCallTime.toLocaleTimeString()}
-                </p>
-              )}
             </div>
           </div>
-          {twilioAlert.message && (
-            <div className="mt-4 p-3 bg-red-800 rounded text-red-100 text-sm">
-              <strong>Status:</strong> {twilioAlert.message}
-            </div>
-          )}
         </div>
       )}
       {/* Primary Sensor Cards */}
@@ -308,9 +290,9 @@ const Dashboard: React.FC = () => {
             </p>
           </div>
           <div>
-            <p className="text-gray-400">Twilio Status</p>
-            <p className={`font-medium ${twilioAlert.triggered ? 'text-red-400' : 'text-green-400'}`}>
-              {twilioAlert.triggered ? 'Alert Sent' : 'Standby'}
+            <p className="text-gray-400">Emergency System</p>
+            <p className={`font-medium ${anomalyStatus.status === 'Critical' ? 'text-red-400' : 'text-green-400'}`}>
+              {anomalyStatus.status === 'Critical' ? 'Alert Ready' : 'Standby'}
             </p>
           </div>
         </div>

@@ -25,8 +25,8 @@ const About: React.FC = () => {
     },
     {
       icon: Shield,
-      title: 'Twilio Emergency Alerts',
-      description: 'Automated emergency calls when critical conditions persist across multiple readings.',
+      title: 'Flask Emergency Alerts',
+      description: 'Automated emergency calls via Flask backend when critical conditions persist across multiple readings.',
     },
   ];
 
@@ -48,7 +48,7 @@ const About: React.FC = () => {
     'Responsive Web Design',
     'Tailwind CSS',
     'Lucide React Icons',
-    'Twilio API Integration',
+    'Flask Backend API',
     'Emergency Alert System',
   ];
 
@@ -183,7 +183,7 @@ const About: React.FC = () => {
         </div>
       </div>
 
-      {/* Twilio Integration */}
+      {/* Flask Backend Integration */}
       <div className="bg-gradient-to-r from-purple-900 to-indigo-800 p-8 rounded-lg shadow-lg">
         <div className="flex items-center mb-6">
           <Phone className="h-8 w-8 text-purple-400 mr-3" />
@@ -191,11 +191,11 @@ const About: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <h3 className="text-lg font-semibold text-white mb-4">Twilio Integration</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Flask Backend Integration</h3>
             <ul className="space-y-2 text-purple-100">
               <li className="flex items-start">
                 <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                Automated emergency calls to +91 9980683606 when critical conditions persist
+                Automated emergency calls via Flask backend when critical conditions persist
               </li>
               <li className="flex items-start">
                 <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
@@ -229,7 +229,7 @@ const About: React.FC = () => {
               <div className="bg-purple-700 p-3 rounded">
                 <span className="text-purple-200 font-semibold">Emergency Response:</span>
                 <p className="text-purple-100 mt-1">
-                  Automated voice call + SMS to +91 9980683606 from +1 9133956396
+                  Automated voice call + SMS via Flask backend to +91 9980683606
                 </p>
               </div>
             </div>
@@ -291,7 +291,7 @@ const About: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span>Alert System:</span>
-                <span className="text-white">Twilio Emergency Calls</span>
+                <span className="text-white">Flask Emergency Calls</span>
               </div>
             </div>
           </div>
